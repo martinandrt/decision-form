@@ -1,0 +1,10 @@
+{
+  "name": "decision-form",
+  "version": "0.1.0",
+  "description": "Turn a pile of decisions into one tappable page; the agent waits for your answers before acting.",
+  "author": { "name": "Martin Andrt" },
+  "homepage": "https://github.com/martinandrt/decision-form",
+  "repository": "https://github.com/martinandrt/decision-form",
+  "license": "MIT",
+  "keywords": ["skills", "decisions", "human-in-the-loop", "forms"]
+}

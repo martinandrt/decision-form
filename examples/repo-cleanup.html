@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo cleanup before v2.0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<!--
+  decision-form template. Do not edit by hand: scripts/build_form.py replaces only <title>, <html lang>
+  and the FORM block between FORM:START and FORM:END. No external requests: works offline from file://.
+-->
+<style>
+/* One phone-first column of question cards; tap a choice, one button at the bottom. */
+:root {
+  --bg: #f2f4f7; --card: #ffffff; --fg: #17212c; --muted: #5b6774; --line: #d7dde4;
+  --accent: #1d6e77; --accent-soft: #d8eef0; --rec: #a96d12; --ok: #2f7d4f; --on-accent: #ffffff;
+  --display: ui-rounded, "SF Pro Rounded", "Helvetica Neue", Arial, sans-serif;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --card: #17202a; --fg: #e6ebf0; --muted: #9ba7b4; --line: #2b3744;
+  --accent: #52b6c0; --accent-soft: #173a3f; --rec: #e2aa4c; --ok: #6fd39b; --on-accent: #0f151b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --card: #17202a; --fg: #e6ebf0; --muted: #9ba7b4; --line: #2b3744;
+  --accent: #52b6c0; --accent-soft: #173a3f; --rec: #e2aa4c; --ok: #6fd39b; --on-accent: #0f151b; color-scheme: dark }
+html { scroll-padding-bottom: 96px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 20px 120px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 14px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1.2; margin: 0; }
+.sub { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 0; }
+#questions { display: grid; gap: 12px; }
+.q { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
+.q h3 { margin: 0; font-size: 16px; font-weight: 650; text-wrap: balance; }
+.q p { margin: 0; color: var(--muted); font-size: 14px; }
+.opts { display: grid; gap: 8px; }
+.opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; cursor: pointer; }
+.opt input { margin: 3px 0 0; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt .rec { color: var(--rec); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.opt span { min-width: 0; }
+details { border-left: 3px solid var(--accent); padding-left: 10px; }
+details summary { color: var(--accent); font-weight: 650; font-size: 14px; cursor: pointer; }
+details p { margin-top: 6px !important; color: var(--fg) !important; }
+.txt { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.bar-in { max-width: 640px; margin: 0 auto; display: flex; gap: 12px; align-items: center; }
+.bar button { font: inherit; font-weight: 650; border: 0; border-radius: 10px; padding: 12px 18px; background: var(--accent); color: var(--on-accent); cursor: pointer; flex: none; }
+.bar button:disabled { opacity: .5; cursor: default; }
+.bar .status { font-size: 14px; color: var(--muted); min-width: 0; }
+.bar .status.ok { color: var(--ok); font-weight: 650; }
+.code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); word-break: break-word; margin: 0; }
+a { color: var(--accent); }
+button:focus-visible, .opt:focus-within, .txt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title"></h1>
+    <p class="sub" id="sub"></p>
+  </header>
+  <main id="questions"></main>
+  <p class="code" id="code"></p>
+</div>
+<div class="bar"><div class="bar-in">
+  <button id="send" type="button"></button>
+  <span class="status" id="status" role="status" aria-live="polite"></span>
+</div></div>
+
+<script>
+/* FORM:START  (the only part that changes; written by scripts/build_form.py)
+   title, sub: heading and one line under it; links: [[text, url]] after the sub line; id: draft key; lang: "en" | "cs".
+   groups: [heading, [questions]]; question: [number, title, why ("" allowed), [options], explanation (optional)];
+   option: [key, text, recommended (1/0), text field (1/0)]. An "x) Other" option with a text field is added
+   automatically when a question has no text field of its own. */
+const FORM = {
+ "id": "repo-cleanup-before-v2-0",
+ "lang": "en",
+ "title": "Repo cleanup before v2.0",
+ "sub": "Seven decisions, safest first. Tap a choice on each card, then send. My recommendation is marked.",
+ "links": [],
+ "groups": [
+  [
+   "Wave 1 · safe, reversible",
+   [
+    [
+     1,
+     "Delete 23 merged branches?",
+     "All of them are merged into main and none has an open pull request.",
+     [
+      [
+       "a",
+       "Delete all 23",
+       1,
+       0
+      ],
+      [
+       "b",
+       "Keep release/* branches, delete the rest",
+       0,
+       0
+      ],
+      [
+       "c",
+       "Keep all",
+       0,
+       0
+      ]
+     ]
+    ],
+    [
+     2,
+     "Move CI from Travis to GitHub Actions?",
+     "Travis builds take 14 minutes and fail at random about 1 run in 10.",
+     [
+      [
+       "a",
+       "Port all four jobs",
+       1,
+       0
+      ],
+      [
+       "b",
+       "Port tests only, keep deploy on Travis",
+       0,
+       0
+      ],
+      [
+       "c",
+       "Not now",
+       0,
+       0
+      ]
+     ],
+     "We would port four jobs: lint, tests, build and deploy. The deploy job needs one new repository secret. If anything breaks, the Travis config stays in git and can be switched back in one commit."
+    ]
+   ]
+  ],
+  [
+   "Wave 2 · changes behaviour for users",
+   [
+    [
+     3,
+     "Drop Node 18 support?",
+     "Node 18 is end-of-life, but 6% of last month's installs still used it.",
+     [
+      [
+       "a",
+       "Drop it in v2.0",
+       1,
+       0
+      ],
+      [
+       "b",
+       "Keep it one more release with a warning",
+       0,
+       0
+      ],
+      [
+       "c",
+       "Keep it",
+       0,
+       0
+      ]
+     ]
+    ],
+    [
+     4,
+     "Rename config keys to camelCase?",
+     "Matches the API, but every user has to touch their config file.",
+     [
+      [
+       "a",
+       "Rename and ship an automatic migration",
+       1,
+       0
+      ],
+      [
+       "b",
+       "Rename and document it only",
+       0,
+       0
+      ],
+      [
+       "c",
+       "Keep snake_case",
+       0,
+       0
+      ]
+     ],
+     "Today the config uses snake_case and the API uses camelCase, so people mix them up. A small migration script can rewrite old configs automatically on first run, so nobody's setup breaks."
+    ],
+    [
+     5,
+     "Default log level",
+     "",
+     [
+      [
+       "a",
+       "info",
+       1,
+       0
+      ],
+      [
+       "b",
+       "warn",
+       0,
+       0
+      ],
+      [
+       "c",
+       "debug",
+       0,
+       0
+      ]
+     ]
+    ]
+   ]
+  ],
+  [
+   "Wave 3 · hard to undo",
+   [
+    [
+     6,
+     "Remove 400 MB of test videos from git history?",
+     "Clone size would drop from 410 MB to 12 MB, but every fork and open pull request has to rebase.",
+     [
+      [
+       "a",
+       "Keep history, move new videos to Git LFS",
+       1,
+       0
+      ],
+      [
+       "b",
+       "Rewrite history after tagging the old one",
+       0,
+       0
+      ],
+      [
+       "c",
+       "Leave it as it is",
+       0,
+       0
+      ]
+     ],
+     "Rewriting history changes every commit hash after the first video was added. The alternative keeps history as it is and moves new videos to Git LFS, so the repo stops growing but does not shrink."
+    ],
+    [
+     7,
+     "When do we publish v2.0?",
+     "",
+     [
+      [
+       "a",
+       "Friday, after everything above is done",
+       1,
+       0
+      ],
+      [
+       "b",
+       "In two weeks",
+       0,
+       0
+      ],
+      [
+       "c",
+       "On a specific date (write which)",
+       0,
+       1
+      ]
+     ]
+    ]
+   ]
+  ]
+ ]
+};
+/* FORM:END */
+
+const TEXT = {
+  en: { explain: "Explain", recommended: "recommended", other: "Other (write what)", placeholder: "write here",
+        yours: "Your answers: ", none: "Nothing selected yet", pickOne: "Pick at least one option first.",
+        picked: (n, t) => n + " of " + t + " answered",
+        partial: (n, t) => "Only " + n + " of " + t + " answered. Tap again to send anyway.",
+        copy: "Copy answers", copied: "Copied. Paste it into the chat.", copyFail: "Copy failed. Copy the code below by hand.",
+        send: "Send answers", sending: "Sending…", sent: t => "Sent at " + t + ". You can close this tab.",
+        sendFail: "Sending failed. Use the code below instead.", changed: "Changed after sending. Copy the code below into the chat." },
+  cs: { explain: "Vysvětlit", recommended: "doporučeno", other: "Jiné (napiš co)", placeholder: "napiš sem",
+        yours: "Tvoje odpovědi: ", none: "Zatím nic nevybráno", pickOne: "Nejdřív vyber aspoň jednu volbu.",
+        picked: (n, t) => n + " z " + t + " vybráno",
+        partial: (n, t) => "Vybráno jen " + n + " z " + t + ". Ťukni znovu, jestli to tak chceš poslat.",
+        copy: "Zkopírovat odpovědi", copied: "Zkopírováno. Vlož to do chatu.", copyFail: "Kopírování nešlo, opiš kód níž.",
+        send: "Odeslat odpovědi", sending: "Odesílám…", sent: t => "Odesláno v " + t + ". Kartu můžeš zavřít.",
+        sendFail: "Odeslat nešlo, použij kód níž.", changed: "Změněno po odeslání. Kód níž vlož do chatu." },
+};
+const T = TEXT[FORM.lang] || TEXT.en;
+document.documentElement.lang = FORM.lang || "en";
+
+document.getElementById("title").textContent = FORM.title;
+const subEl = document.getElementById("sub");
+subEl.textContent = FORM.sub;
+for (const [text, url] of FORM.links || []) {
+  if (!/^https?:\/\//.test(url)) continue;
+  const a = document.createElement("a"); a.href = url; a.textContent = text; a.target = "_blank"; a.rel = "noopener noreferrer";
+  subEl.append(" ", a);
+}
+
+// Render [text](https://...) inside a card's "why" line as a link; everything else stays plain text.
+function withLinks(el, text) {
+  const re = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g; let last = 0, m;
+  while ((m = re.exec(text))) {
+    el.append(text.slice(last, m.index));
+    const a = document.createElement("a"); a.href = m[2]; a.textContent = m[1]; a.target = "_blank"; a.rel = "noopener noreferrer";
+    el.append(a); last = re.lastIndex;
+  }
+  el.append(text.slice(last));
+}
+
+const TOTAL = FORM.groups.reduce((s, [, qs]) => s + qs.length, 0);
+const INDEX = {};  // number -> {title, options: {key: text}}
+const box = document.getElementById("questions");
+for (const [heading, questions] of FORM.groups) {
+  const h = document.createElement("h2"); h.textContent = heading; box.appendChild(h);
+  for (const [n, title, why, options, explanation] of questions) {
+    const q = document.createElement("section"); q.className = "q";
+    const h3 = document.createElement("h3"); h3.textContent = n + ". " + title; q.appendChild(h3);
+    if (why) { const p = document.createElement("p"); withLinks(p, why); q.appendChild(p); }
+    if (explanation) {
+      const det = document.createElement("details"); const sum = document.createElement("summary");
+      sum.textContent = T.explain; const ep = document.createElement("p"); ep.textContent = explanation;
+      det.append(sum, ep); q.appendChild(det);
+    }
+    const opts = document.createElement("div"); opts.className = "opts"; opts.setAttribute("role", "radiogroup");
+    opts.setAttribute("aria-label", title);
+    // Every question gets an "Other" option with a text field, unless one of its options already has a field.
+    const all = options.some(o => o[3]) ? options : [...options, ["x", T.other, 0, 1]];
+    INDEX[n] = { title, options: {} };
+    for (const [k, text, rec, withText] of all) {
+      INDEX[n].options[k] = text;
+      const l = document.createElement("label"); l.className = "opt";
+      const i = document.createElement("input"); i.type = "radio"; i.name = "q" + n; i.value = k; i.id = "q" + n + k;
+      const s = document.createElement("span"); s.textContent = k + ") " + text + " ";
+      if (rec) { const r = document.createElement("span"); r.className = "rec"; r.textContent = T.recommended; s.appendChild(r); }
+      l.append(i, s); opts.appendChild(l);
+      if (withText) {
+        const t = document.createElement("input"); t.className = "txt"; t.type = "text"; t.id = "t" + n; t.placeholder = T.placeholder;
+        t.setAttribute("aria-label", title + ": " + text);
+        t.addEventListener("input", () => { document.getElementById("q" + n + k).checked = true; refresh(); });
+        opts.appendChild(t);
+      }
+    }
+    q.appendChild(opts); box.appendChild(q);
+  }
+}
+
+function collect() {
+  const answers = {}, notes = {};
+  document.querySelectorAll("input[type=radio]:checked").forEach(i => { answers[i.name.slice(1)] = i.value; });
+  document.querySelectorAll(".txt").forEach(t => { if (t.value.trim()) notes[t.id.slice(1)] = t.value.trim(); });
+  return { answers, notes };
+}
+function codeOf({ answers, notes }) {
+  return Object.keys(answers).sort((a, b) => a - b).map(n => n + answers[n] + (notes[n] ? ": " + notes[n] : "")).join(" ");
+}
+function fill({ answers, notes }) {
+  for (const [n, v] of Object.entries(answers || {})) { const i = document.getElementById("q" + n + v); if (i) i.checked = true; }
+  for (const [n, v] of Object.entries(notes || {})) { const t = document.getElementById("t" + n); if (t) t.value = v; }
+}
+// Draft in the browser only protects half-filled forms against a reload.
+const DRAFT = "decision-form:" + FORM.id;
+function saveDraft(s) { try { localStorage.setItem(DRAFT, JSON.stringify(s)); } catch (e) { /* no storage */ } }
+function loadDraft() { try { return JSON.parse(localStorage.getItem(DRAFT) || "null"); } catch (e) { return null; } }
+
+// Served by scripts/serve_form.py (http + ?t=token): answers are posted back. Opened as a file: copy mode.
+const TOKEN = location.protocol.startsWith("http") ? new URLSearchParams(location.search).get("t") : null;
+const status = document.getElementById("status"), codeEl = document.getElementById("code"), send = document.getElementById("send");
+send.textContent = TOKEN ? T.send : T.copy;
+let sentCode = null, partialOk = false;
+
+function refresh() {
+  const s = collect(), k = codeOf(s), n = Object.keys(s.answers).length;
+  codeEl.textContent = k ? T.yours + k : "";
+  saveDraft(s);
+  if (sentCode !== null) {
+    if (sentCode === k) return;
+    status.className = "status"; status.textContent = T.changed; return;
+  }
+  status.className = "status"; status.textContent = n ? T.picked(n, TOTAL) : T.none;
+}
+box.addEventListener("change", () => { partialOk = false; refresh(); });
+
+const draft = loadDraft();
+if (draft) fill(draft);
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    const a = document.createElement("textarea"); a.value = text; document.body.appendChild(a); a.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (x) { ok = false; } a.remove(); return ok;
+  }
+}
+
+function readable(s) {
+  return Object.keys(s.answers).sort((a, b) => a - b).map(n => ({
+    question: Number(n), title: INDEX[n].title, choice: s.answers[n],
+    option: INDEX[n].options[s.answers[n]], note: s.notes[n] || "" }));
+}
+
+send.addEventListener("click", async () => {
+  const s = collect(), k = codeOf(s);
+  const n = Object.keys(s.answers).length;
+  if (!n) { status.className = "status"; status.textContent = T.pickOne; return; }
+  // A stray tap on the button must not send a half-filled form: unanswered questions need a second tap.
+  if (n < TOTAL && !partialOk) { partialOk = true; status.className = "status"; status.textContent = T.partial(n, TOTAL); return; }
+  if (!TOKEN) {
+    const ok = await copy(FORM.title + ": " + k);
+    status.className = ok ? "status ok" : "status"; status.textContent = ok ? T.copied : T.copyFail;
+    return;
+  }
+  send.disabled = true; status.className = "status"; status.textContent = T.sending;
+  try {
+    const r = await fetch("answers?t=" + encodeURIComponent(TOKEN), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ form: FORM.id, title: FORM.title, answers: s.answers, notes: s.notes, code: k,
+                             readable: readable(s), submitted_at: new Date().toISOString() }) });
+    if (!r.ok) throw new Error(r.status);
+    sentCode = k; status.className = "status ok";
+    status.textContent = T.sent(new Date().toLocaleTimeString(FORM.lang || "en", { hour: "2-digit", minute: "2-digit" }));
+  } catch (e) {
+    status.className = "status"; status.textContent = T.sendFail;
+  } finally { send.disabled = false; }
+});
+refresh();
+</script>
+</body>
+</html>

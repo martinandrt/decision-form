@@ -1,0 +1,12 @@
+{
+  "name": "decision-form",
+  "owner": { "name": "Martin Andrt" },
+  "description": "Clickable HTML decision forms for coding agents.",
+  "plugins": [
+    {
+      "name": "decision-form",
+      "source": "./",
+      "description": "Turn a pile of decisions into one tappable page; the agent waits for your answers before acting."
+    }
+  ]
+}
