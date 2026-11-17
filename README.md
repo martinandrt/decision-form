@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Stop answering seven questions buried in one chat message.</b><br>
-  Your coding agent turns its open decisions into one page of tappable cards, on your laptop or your phone,<br>
+  Your coding agent turns its open decisions into one page of tappable cards, on your laptop or your phone,
   and waits for your answers before it touches anything.
 </p>
 
@@ -66,15 +66,17 @@ Unanswered questions are asked about, never filled in with the agent's own guess
 
 ## A card, as the agent wrote it
 
-Unedited output of a fresh agent (Claude Haiku) that had only this skill and the task *"decide language,
-license, CI and registry for a new CLI"*:
+Output of a fresh agent (Claude Haiku) that had only this skill and the task *"decide language, license, CI
+and registry for a new CLI"*. Only the line breaks are ours:
 
 ```markdown
 ### Which license: MIT or Apache-2.0?
-Both let anyone use, change and sell the code. Changing the license is hard once outside contributors
-have sent code, so decide before that happens. Downside of MIT: it says nothing about patents.
-> MIT is one short paragraph and the most common license for small tools. Apache-2.0 is longer. It adds
-> an explicit patent license from every contributor and ends that license for anyone who sues over the code.
+Both let anyone use, change and sell the code. Changing the license is hard
+once outside contributors have sent code, so decide before that happens.
+Downside of MIT: it says nothing about patents.
+> MIT is one short paragraph and the most common license for small tools.
+> Apache-2.0 is longer. It adds an explicit patent license from every
+> contributor and ends that license for anyone who sues over the code.
 > It cannot be combined with GPLv2 code, which rarely matters for a new CLI.
 - MIT: short, and the most common for small tools *
 - Apache-2.0: explicit patent grant, better if companies will contribute
